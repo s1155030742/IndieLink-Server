@@ -10,21 +10,6 @@ var multer = require('multer');
 var math = require('mathjs');
 var expressValidator = require('express-validator');
 
-app.use(multer({
-    dest: __dirname + '/../public/uploads/',
-    rename: function (fieldname, filename) {
-        return filename;
-    },
-    onFileUploadStart: function (file) {
-    },
-    onFileUploadComplete: function (file) {
-		//console.log(file.fieldname + ' uploaded to '+ file.path);
-    },
-    limits: {
-        fileSize: 10485760
-    }
-}));
-
 var db = require('knex')({
     client: 'mysql2',
     connection: {
@@ -50,6 +35,28 @@ app.use(bodyParser.json());
 // this line must be immediately after express.bodyParser()!
 // Reference: https://www.npmjs.com/package/express-validator
 app.use(expressValidator());
+
+var upload = (multer({
+    dest: __dirname+'/../uploads/',
+    changeDest: function(dest, req, res){
+    	if (req.body.user_id == undefined) return res.status(400).json('invalid request').end();
+    	var stat = null;
+        try {
+            stat = fs.statSync(newDestination);
+        } catch (err) {
+            fs.mkdirSync(newDestination);
+            stat = fs.statSync(newDestination);
+        }
+        if (stat && !stat.isDirectory()) {
+            throw new Error('Directory cannot be created because an inode of a different type exists at "' + dest + '"');
+        }
+        dest += req.body.user_id;
+        return dest;
+    },
+    onFileUploadStart: function(file){
+        console.log('starting');
+    }
+}));
 
 // URL expected: http://hostname/user/edit   
 //for this is for Edit user info
@@ -388,28 +395,11 @@ console.log(bandInstrument);
 });
 
 
-app.post('/soundtrack', multer({
-    dest: './uploads/',
-    changeDest: function (dest, req, res) {
-        if (req.body.user_id == undefined) return res.status(400).json('invalid request').end();
-        var filepath = __dirname + '/../uploads/' + req.body.user_id;
-        var stat = null;
-        try {
-            stat = fs.statSync(newDestination);
-        } catch (err) {
-            fs.mkdirSync(newDestination);
-            stat = fs.statSync(newDestination);
-        }
-        if (stat && !stat.isDirectory()) {
-            throw new Error('Directory cannot be created because an inode of a different type exists at "' + dest + '"');
-        }
-        return filepath
-    }
-    }), function (req, res) {
+app.post('/soundtrack', upload.single('sound') , function (req, res) {
     db.transaction(function (trx) {
         db('UserSound').transacting(trx).insert({
             user_id: req.body.user_id,
-            sound_name: req.files.file.name,
+            sound_name: req.file.sound,
         }).then(trx.commit).catch(trx.rollback);
     }).then(function (resp) {
         res.status(200).json({ 'status': 'success' }).end();
