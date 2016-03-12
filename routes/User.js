@@ -235,6 +235,7 @@ app.post('/', function (req, res) {
 							return {'instrument':item.instrument,'band_id':item.band_id,'user_id':item.user_id};
 						});	
 						var JSon = JSON.stringify({  
+						user_id: User.user_id,
     					about_me: User.about_me,
     					instrument: instruments,
     					band: Band,
@@ -396,6 +397,7 @@ console.log(bandInstrument);
 
 
 app.post('/soundtrack', upload.single('sound') , function (req, res) {
+	console.log("/soundtrack");
     db.transaction(function (trx) {
         db('UserSound').transacting(trx).insert({
             user_id: req.body.user_id,
