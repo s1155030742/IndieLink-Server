@@ -11,7 +11,7 @@ LoginRouter = require('./routes/Login.js'),
 app.use('/uploads',express.static('uploads'));
 
 // Login routers run first
-app.use(LoginRouter);
+//app.use(LoginRouter);
 app.use('/user' , UserRouter);
 app.use('/band' , BandRouter);
 

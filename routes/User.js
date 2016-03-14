@@ -36,27 +36,34 @@ app.use(bodyParser.json());
 // Reference: https://www.npmjs.com/package/express-validator
 app.use(expressValidator());
 
-var upload = (multer({
-    dest: __dirname+'/../uploads/',
-    changeDest: function(dest, req, res){
-    	if (req.body.user_id == undefined) return res.status(400).json('invalid request').end();
-    	var stat = null;
-        try {
-            stat = fs.statSync(newDestination);
-        } catch (err) {
-            fs.mkdirSync(newDestination);
-            stat = fs.statSync(newDestination);
-        }
-        if (stat && !stat.isDirectory()) {
-            throw new Error('Directory cannot be created because an inode of a different type exists at "' + dest + '"');
-        }
-        dest += req.body.user_id;
-        return dest;
-    },
-    onFileUploadStart: function(file){
-        console.log('starting');
+var soundtrack = undefined;
+
+var storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+  	if (req.params.user_id == undefined) return res.status(400).json('invalid request').end();
+  	var newDestination = __dirname+'/../uploads/' + req.params.user_id;
+  	var stat = null;
+    try {
+    	console.log('dir exist:' + newDestination);
+        stat = fs.statSync(newDestination);
+    } catch (err) {
+    	console.log('mkdir:' + newDestination);
+    	fs.mkdirSync(newDestination);
+        stat = fs.statSync(newDestination);
     }
-}));
+    if (stat && !stat.isDirectory()) {
+        throw new Error('Directory cannot be created because an inode of a different type exists at "' + dest + '"');
+    }
+    cb(null, newDestination);
+  },
+  filename: function (req, file, cb) {
+  	soundtrack = file.fieldname;
+  	console.log(soundtrack);
+    cb(null, soundtrack);
+  }
+});
+
+var SoundUpload = multer({ storage: storage });
 
 // URL expected: http://hostname/user/edit   
 //for this is for Edit user info
@@ -387,7 +394,7 @@ console.log(bandInstrument);
 					var JSon = JSON.stringify({
     				user: user_list
   					}); 	
-  				cosole.log("user/detail");	 				
+  				console.log("user/detail");	 				
 				res.status(200).json(JSON.parse(JSon)).end();
 				});
 			});
@@ -395,13 +402,14 @@ console.log(bandInstrument);
 	}); 
 });
 
-
-app.post('/soundtrack', upload.single('sound') , function (req, res) {
-	console.log("/soundtrack");
+app.post('/soundtrack/:user_id', SoundUpload.any() , function (req, res) {
+	console.log("user/soundtrack");
+	console.log(req.files);
+	console.log(req.file);
     db.transaction(function (trx) {
         db('UserSound').transacting(trx).insert({
-            user_id: req.body.user_id,
-            sound_name: req.file.sound,
+            user_id: req.params.user_id,
+            sound_name: soundtrack,
         }).then(trx.commit).catch(trx.rollback);
     }).then(function (resp) {
         res.status(200).json({ 'status': 'success' }).end();
